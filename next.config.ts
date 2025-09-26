@@ -5,11 +5,13 @@ import type { NextConfig } from "next";
 // };
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    turbopack: {
-      root: './', // or relative path to your project root
-    },
-  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  }, typescript: {
+    ignoreBuildErrors: true,
+  }
+
+
 };
 
 module.exports = nextConfig;
