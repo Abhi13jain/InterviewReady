@@ -8,8 +8,17 @@ export async function GET() {
     return Response.json({ success: true, data: 'THANK YOU!' }, { status: 200 });
 }
 export async function POST(request: Request) {
-    const { type, role, level, techstack, amount, userid } = await request.json();
     try {
+        const { type, role, level, techstack, amount, userid } = await request.json();
+
+        // Validate required fields
+        if (!type || !role || !level || !techstack || !amount || !userid) {
+            return Response.json({
+                success: false,
+                error: "Missing required fields"
+            }, { status: 400 });
+        }
+
         const { text: questions } = await generateText({
             model: google('gemini-2.0-flash-001'),
             prompt: `Prepare questions for a job interview.
@@ -25,20 +34,38 @@ export async function POST(request: Request) {
 
             Thank you! <3
             `
-        })
+        });
+
+        let parsedQuestions;
+        try {
+            parsedQuestions = JSON.parse(questions);
+        } catch (parseError) {
+            console.error("Failed to parse questions:", parseError);
+            return Response.json({
+                success: false,
+                error: "Failed to parse generated questions"
+            }, { status: 500 });
+        }
+
         const interview = {
-            role, type, level,
-            techstack: techstack.split(','),
-            questions: JSON.parse(questions),
+            role,
+            type,
+            level,
+            techstack: techstack.split(',').map(tech => tech.trim()),
+            questions: parsedQuestions,
             userId: userid,
             finalized: true,
             coverImage: getRandomInterviewCover(),
             createdAt: new Date().toISOString()
-        }
+        };
+
         await db.collection("interviews").add(interview);
-        return Response.json({ success: true }, { status: 200 })
+        return Response.json({ success: true }, { status: 200 });
     } catch (error) {
-        console.error(error);
-        return Response.json({ success: false, error }, { status: 500 });
+        console.error("Generate interview error:", error);
+        return Response.json({
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error"
+        }, { status: 500 });
     }
 }

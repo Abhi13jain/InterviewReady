@@ -20,27 +20,42 @@ export async function POST(req: Request) {
         // Send to Gemini API
         const GEMINI_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
+        if (!GEMINI_API_KEY) {
+            return NextResponse.json({ error: "API key not configured" }, { status: 500 });
+        }
+
         const geminiResponse = await fetch(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${GEMINI_API_KEY}`,
+                    "X-Goog-Api-Key": GEMINI_API_KEY,
                 },
                 body: JSON.stringify({
-                    prompt: { text: inputText },
-                    model: "gemini-2.0-flash",
-                    temperature: 0.7,
-                    max_output_tokens: 256,
+                    contents: [{
+                        parts: [{
+                            text: inputText
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 256,
+                    },
                 }),
             }
         );
+
+        if (!geminiResponse.ok) {
+            throw new Error(`Gemini API error: ${geminiResponse.status}`);
+        }
 
         const data = await geminiResponse.json();
         return NextResponse.json(data);
     } catch (error: any) {
         console.error("Proxy error:", error);
-        return NextResponse.json({ error: error.message || "Something went wrong" }, { status: 500 });
+        return NextResponse.json({
+            error: error.message || "Something went wrong"
+        }, { status: 500 });
     }
 }
