@@ -51,7 +51,7 @@ export async function POST(request: Request) {
             role,
             type,
             level,
-            techstack: techstack.split(',').map(tech => tech.trim()),
+            techstack: techstack.split(',').map((tech: string) => tech.trim()),
             questions: parsedQuestions,
             userId: userid,
             finalized: true,

@@ -12,7 +12,12 @@ const Page = async ({ params }: RouteParams) => {
     const { id } = await params;
     const user = await getCurrentUser();
     const interview = await getInterviewById(id);
+    
     if (!interview) redirect('/dashboard');
+    
+    // Debug logging
+    console.log("Interview data:", interview);
+    console.log("Interview questions:", interview.questions);
     return (
         <ErrorBoundary>
             <div className="flex flex-row gap-4 justify-between">
