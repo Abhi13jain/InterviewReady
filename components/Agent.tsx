@@ -159,7 +159,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { vapi } from '@/lib/vapi.sdk';
-
+import { interviewer } from '@/constants';
 enum CallStatus {
     INACTIVE = 'INACTIVE',
     CONNECTING = 'CONNECTING',
@@ -184,11 +184,12 @@ interface AgentProps {
     userName: string;
     userId: string;
     type: string;
+    interviewId?: string;
     questions?: string[];
     interviewer?: string;
 }
 
-const Agent = ({ userName, userId, type, questions, interviewer }: AgentProps) => {
+const Agent = ({ userName, userId, type, interviewId, questions, interviewer }: AgentProps) => {
     const router = useRouter();
     const [isSpeaking, setIsSpeaking] = React.useState(false);
     const [callStatus, setCallStatus] = React.useState<CallStatus>(CallStatus.INACTIVE);
@@ -277,7 +278,31 @@ const Agent = ({ userName, userId, type, questions, interviewer }: AgentProps) =
         }
     }, []);
 
+    const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+        // Implement your feedback generation logic here
+        console.log('Generate feedback here.');
+
+        const { success, id } = {
+            success: true,
+            id: 'feedback-id'
+        }
+        if (success && id) {
+            router.push(`/interview/${interviewId}/feedback`);
+        }
+        else {
+            console.log('Error saving feedback');
+        }
+    }
+
     useEffect(() => {
+        if (callStatus === CallStatus.FINISHED) {
+            if (type === 'generate') {
+                router.push('/');
+            }
+            else {
+                handleGenerateFeedback(messages);
+            }
+        }
         if (callStatus === CallStatus.FINISHED) router.push('/');
     }, [messages, callStatus, type, userId, router]);
 

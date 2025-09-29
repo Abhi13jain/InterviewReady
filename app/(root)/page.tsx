@@ -4,13 +4,15 @@ import Image from 'next/image'
 import React from 'react'
 import { dummyInterviews } from '@/constants'
 import InterviewCard from '@/components/InterviewCard'
-import { getCurrentUser, getInterviewByUserId, getLatestInterviews } from '@/lib/actions/auth.action'
+import { getInterviewById, getLatestInterviews } from '@/lib/actions/general.action'
+import { getCurrentUser } from '@/lib/actions/auth.action'
 const Page = async () => {
   const user = await getCurrentUser();
-  const [userInterviews, latestInterviewsRaw] = await Promise.all([
-    await getInterviewByUserId(user?.id! ?? '') || [],
+  const [userInterviewsRaw, latestInterviewsRaw] = await Promise.all([
+    await getInterviewById(user?.id! ?? '') || [],
     await getLatestInterviews({ userId: user?.id! })
   ])
+  const userInterviews = Array.isArray(userInterviewsRaw) ? userInterviewsRaw : [];
   const latestInterviews = latestInterviewsRaw || [];
   // const userInterviews = (await getInterviewByUserId(user?.id! ?? '')) || [];
   // const latestInterviews = await getLatestInterviews({ userId: user?.id! });
@@ -33,7 +35,17 @@ const Page = async () => {
         <div className="interviews-section">
           {
             hasPastInterviews ? (
-              userInterviews?.map((interview) => (<InterviewCard {...interview} key={interview.id} />))) : (<p>No past interviews found</p>)
+              userInterviews?.map((interview) => {
+                if (interview && typeof interview === 'object' && !Array.isArray(interview)) {
+                  return (
+                    <InterviewCard
+                      role={''} type={''} techstack={[]} key={(interview as any).id}
+                      {...(typeof interview === 'object' && !Array.isArray(interview) ? interview : {})} />
+                  );
+                }
+                return null;
+              })
+            ) : (<p>No past interviews found</p>)
           }
         </div>
       </section>
