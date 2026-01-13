@@ -269,37 +269,58 @@ End the conversation on a polite and positive note.
 
                 console.log("Starting VAPI with custom assistant");
                 console.log("Questions embedded:", formattedQuestions);
-                setLastStartPayload({ assistant: customAssistant });
+                
+                // VAPI SDK requires the assistant to be wrapped in an object with 'assistant' key
+                const startPayload = { assistant: customAssistant };
+                setLastStartPayload(startPayload);
 
                 try {
-                    // First attempt: call start with the assistant object as before
-                    await vapi.start(customAssistant as any);
+                    // Use the correct format: { assistant: {...} }
+                    await vapi.start(startPayload as any);
                 } catch (err: any) {
                     setLastStartError(err);
-                    console.error('VAPI start attempt failed for customAssistant:', err);
-                    // Specific SDK error when it expects a top-level wrapper
-                    if (err && typeof err.message === 'string' && err.message.includes('Assistant or Squad or Workflow must be provided')) {
-                        console.log('Retrying vapi.start with { assistant: customAssistant } wrapper');
-                        setLastStartPayload({ assistantWrapper: { assistant: customAssistant } });
-                        try {
-                            await vapi.start({ assistant: customAssistant } as any);
-                        } catch (err2: any) {
-                            setLastStartError(err2);
-                            console.error('VAPI start retry also failed:', err2);
-                            toast.error('Failed to start interview (VAPI). Check console for details.');
-                            setCallStatus(CallStatus.INACTIVE);
-                            return;
-                        }
+                    console.error('VAPI start failed:', err);
+                    
+                    // Check for error message in different possible formats
+                    const errorMessage = err?.message || err?.error?.message || JSON.stringify(err);
+                    console.error('Error details:', {
+                        error: err,
+                        message: errorMessage,
+                        type: typeof err,
+                        keys: err ? Object.keys(err) : []
+                    });
+                    
+                    // Check if it's the validation error
+                    if (errorMessage && typeof errorMessage === 'string' && 
+                        errorMessage.includes('Assistant or Squad or Workflow must be provided')) {
+                        console.error('VAPI validation error: Assistant format may be incorrect');
+                        toast.error('Failed to start interview: Invalid assistant configuration. Check console for details.');
                     } else {
                         toast.error('Failed to start interview. Please try again.');
-                        setCallStatus(CallStatus.INACTIVE);
-                        return;
                     }
+                    setCallStatus(CallStatus.INACTIVE);
+                    return;
                 }
             }
-        } catch (error) {
-            console.error("VAPI start error:", error);
-            toast.error("Failed to start interview. Please try again.");
+        } catch (error: any) {
+            console.error("VAPI start error (outer catch):", error);
+            setLastStartError(error);
+            
+            // Extract error message from various possible formats
+            const errorMessage = error?.message || error?.error?.message || 
+                               (typeof error === 'string' ? error : JSON.stringify(error));
+            
+            console.error("Error message:", errorMessage);
+            console.error("Error type:", typeof error);
+            console.error("Error keys:", error ? Object.keys(error) : []);
+            
+            // Check for specific validation error
+            if (errorMessage && typeof errorMessage === 'string' && 
+                errorMessage.includes('Assistant or Squad or Workflow must be provided')) {
+                toast.error('Failed to start interview: Assistant configuration is missing or invalid.');
+            } else {
+                toast.error("Failed to start interview. Please try again.");
+            }
             setCallStatus(CallStatus.INACTIVE);
         }
     };
