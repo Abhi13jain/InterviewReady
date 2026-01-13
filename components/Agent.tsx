@@ -170,8 +170,16 @@ const Agent = ({ userName, userId, type, interviewId, questions, interviewer }: 
 
         try {
             if (type === "generate") {
+                const workflowId = process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID;
+                if (!workflowId) {
+                    console.error('VAPI workflow id is not configured (NEXT_PUBLIC_VAPI_WORKFLOW_ID)');
+                    toast.error('VAPI workflow is not configured. Please set NEXT_PUBLIC_VAPI_WORKFLOW_ID in your environment.');
+                    setCallStatus(CallStatus.INACTIVE);
+                    return;
+                }
+
                 await vapi.start(
-                    process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+                    workflowId,
                     {
                         variableValues: {
                             username: userName,
