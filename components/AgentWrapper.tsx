@@ -1,12 +1,9 @@
 'use client';
 
-import dynamic from "next/dynamic";
+import React, { Suspense, lazy } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
-const Agent = dynamic(() => import("@/components/Agent"), {
-    loading: () => <div className="flex items-center justify-center min-h-96"><LoadingSpinner size="lg" /></div>,
-    ssr: false
-});
+const Agent = lazy(() => import('@/components/Agent'));
 
 interface AgentWrapperProps {
     userName: string;

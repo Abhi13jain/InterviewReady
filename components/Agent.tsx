@@ -185,9 +185,9 @@ const Agent = ({ userName, userId, type, interviewId, questions, interviewer }: 
                             username: userName,
                             userid: userId,
                         },
-                        clientMessages: [],
-                        serverMessages: [],
-                    }
+                        clientMessages: [] as any[],
+                        serverMessages: [] as any[],
+                    } as any
                 );
             } else {
                 let formattedQuestions = "";
@@ -263,7 +263,7 @@ End the conversation on a polite and positive note.
                 console.log("Starting VAPI with custom assistant");
                 console.log("Questions embedded:", formattedQuestions);
 
-                await vapi.start(customAssistant);
+                await vapi.start(customAssistant as any);
             }
         } catch (error) {
             console.error("VAPI start error:", error);
