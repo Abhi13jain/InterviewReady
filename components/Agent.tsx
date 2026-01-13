@@ -44,6 +44,9 @@ const Agent = ({ userName, userId, type, interviewId, questions, interviewer }: 
     const [callStatus, setCallStatus] = React.useState<CallStatus>(CallStatus.INACTIVE);
 
     const [messages, setMessages] = React.useState<SavedMessage[]>([]);
+    const [debugOpen, setDebugOpen] = React.useState(false);
+    const [lastStartPayload, setLastStartPayload] = React.useState<any>(null);
+    const [lastStartError, setLastStartError] = React.useState<any>(null);
 
     // Debug: Log messages state changes
     useEffect(() => {
@@ -178,17 +181,21 @@ const Agent = ({ userName, userId, type, interviewId, questions, interviewer }: 
                     return;
                 }
 
-                await vapi.start(
+                const payload = {
                     workflowId,
-                    {
+                    options: {
                         variableValues: {
                             username: userName,
                             userid: userId,
                         },
                         clientMessages: [] as any[],
                         serverMessages: [] as any[],
-                    } as any
-                );
+                    }
+                };
+                setLastStartPayload(payload);
+                console.log('Starting VAPI workflow with payload:', payload);
+
+                await vapi.start(workflowId, payload.options as any);
             } else {
                 let formattedQuestions = "";
                 if (questions && questions.length > 0) {
@@ -262,8 +269,33 @@ End the conversation on a polite and positive note.
 
                 console.log("Starting VAPI with custom assistant");
                 console.log("Questions embedded:", formattedQuestions);
+                setLastStartPayload({ assistant: customAssistant });
 
-                await vapi.start(customAssistant as any);
+                try {
+                    // First attempt: call start with the assistant object as before
+                    await vapi.start(customAssistant as any);
+                } catch (err: any) {
+                    setLastStartError(err);
+                    console.error('VAPI start attempt failed for customAssistant:', err);
+                    // Specific SDK error when it expects a top-level wrapper
+                    if (err && typeof err.message === 'string' && err.message.includes('Assistant or Squad or Workflow must be provided')) {
+                        console.log('Retrying vapi.start with { assistant: customAssistant } wrapper');
+                        setLastStartPayload({ assistantWrapper: { assistant: customAssistant } });
+                        try {
+                            await vapi.start({ assistant: customAssistant } as any);
+                        } catch (err2: any) {
+                            setLastStartError(err2);
+                            console.error('VAPI start retry also failed:', err2);
+                            toast.error('Failed to start interview (VAPI). Check console for details.');
+                            setCallStatus(CallStatus.INACTIVE);
+                            return;
+                        }
+                    } else {
+                        toast.error('Failed to start interview. Please try again.');
+                        setCallStatus(CallStatus.INACTIVE);
+                        return;
+                    }
+                }
             }
         } catch (error) {
             console.error("VAPI start error:", error);
@@ -300,7 +332,7 @@ End the conversation on a polite and positive note.
                     <div className="card-content">
                         <Image
                             src="/user-avatar.png"
-                            alt="User Avatar"
+                            alt={`${userName}'s avatar`}
                             width={120}
                             height={120}
                             className="rounded-full object-cover size-[120px]"
@@ -329,19 +361,42 @@ End the conversation on a polite and positive note.
                     </div>
                 </div>
             )}
-            <div className="w-full flex justify-center">
-                {callStatus !== 'ACTIVE' ? (
-                    <button className="relative btn-call" onClick={handleCall}>
-                        <span className={cn('absolute animate-ping rounded-full opacity-75', callStatus !== 'CONNECTING' && 'hidden')} />
-                        <span>
-                            {isCallInactiveOrFinished ? 'Call' : '. . .'}
-                        </span>
+            {/* Debug toggle and panel */}
+            <div className="w-full flex flex-col items-center">
+                <div className="w-full flex justify-center mb-4">
+                    <button
+                        className="text-sm underline text-muted-foreground"
+                        onClick={() => setDebugOpen(!debugOpen)}
+                        type="button"
+                    >
+                        {debugOpen ? 'Hide debug' : 'Show debug'}
                     </button>
-                ) : (
-                    <button className="btn-disconnect" onClick={handleDisconnect}>
-                        End
-                    </button>
+                </div>
+                {debugOpen && (
+                    <div className="debug-panel bg-dark-800 p-3 rounded mb-4 text-xs w-full max-w-xl">
+                        <div><strong>VAPI token present:</strong> {process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN ? 'yes' : 'no'}</div>
+                        <div><strong>VAPI workflow id:</strong> {process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID ?? '---'}</div>
+                        <div style={{ marginTop: 8 }}><strong>Last start payload:</strong></div>
+                        <pre className="text-xs max-h-40 overflow-auto">{lastStartPayload ? JSON.stringify(lastStartPayload, null, 2) : '---'}</pre>
+                        <div style={{ marginTop: 8 }}><strong>Last start error:</strong></div>
+                        <pre className="text-xs max-h-40 overflow-auto">{lastStartError ? (lastStartError.message || JSON.stringify(lastStartError)) : '---'}</pre>
+                    </div>
                 )}
+
+                <div className="w-full flex justify-center">
+                    {callStatus !== 'ACTIVE' ? (
+                        <button className="relative btn-call" onClick={handleCall}>
+                            <span className={cn('absolute animate-ping rounded-full opacity-75', callStatus !== 'CONNECTING' && 'hidden')} />
+                            <span>
+                                {isCallInactiveOrFinished ? 'Call' : '. . .'}
+                            </span>
+                        </button>
+                    ) : (
+                        <button className="btn-disconnect" onClick={handleDisconnect}>
+                            End
+                        </button>
+                    )}
+                </div>
             </div>
         </>
     )
